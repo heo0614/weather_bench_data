@@ -8,11 +8,12 @@ import xarray as xr
 from tqdm import tqdm
 
 # 데이터 저장 경로 설정
-default_save_path = '../../datasets/weather_bench/'
+data_root = '../datasets/weather_bench/'
+raw_data_dir = data_root + 'raw_data/'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--grid_size', type=int, default=624)
-parser.add_argument('--save_path', type=str, default=default_save_path)
+parser.add_argument('--save_path', type=str, default=raw_data_dir)
 parser.add_argument('--start_date', type=str, default='2019-06-01')
 parser.add_argument('--end_date', type=str, default='2019-07-31')
 

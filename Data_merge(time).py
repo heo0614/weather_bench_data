@@ -1,7 +1,18 @@
+import argparse
+import argparse
+import glob
 import os
 import re
+
 import xarray as xr
-import glob
+
+from Data_40_delete import get_sparse_dirs
+from Data_division import dense_input_dir, dense_target_dir, low_input_dir, high_data_target_dir, \
+    sparse_target_dir_dense, data_root
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--sparsity', type=int, default=40, help='percentage of data points to remove')
+
 
 # 파일명 날짜 제거
 def get_base_filename(directory):
@@ -49,15 +60,25 @@ def merge_nc_files(directory):
         print(f"오류 {directory}: {e}\n")
 
 
-base_dirs = [
-        r"E:\metnet3\weather_bench\sparse_data(40)_input",
-        r"E:\metnet3\weather_bench\dense_data_input",
-        r"E:\metnet3\weather_bench\low_data_input",
-        r"E:\metnet3\weather_bench\high_data_target",
-        r"E:\metnet3\weather_bench\sparse_data(40)_target",
-        r"E:\metnet3\weather_bench\dense_data_target"
-        r"E:\metnet3\weather_bench\sparse_data_target"
+if __name__ == "__main__":
+    args = parser.parse_args()
+    sparsity = args.sparsity
+
+    sparse_input_dir, sparse_target_dir = get_sparse_dirs(data_root, sparsity)
+
+    if not os.path.exists(sparse_input_dir):
+        print('Error: generate sparse data first using Data_40_delete.py!')
+        exit()
+
+    base_dirs = [
+        sparse_input_dir,
+        sparse_target_dir,
+        dense_input_dir,
+        dense_target_dir,
+        low_input_dir,
+        high_data_target_dir,
+        sparse_target_dir_dense
     ]
 
-for dir_path in base_dirs:
-    merge_nc_files(dir_path)
+    for dir_path in base_dirs:
+        merge_nc_files(dir_path)

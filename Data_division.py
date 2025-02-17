@@ -1,40 +1,26 @@
 import os
-import xarray as xr
-import numpy as np
-import pandas as pd
 from glob import glob
+
+import xarray as xr
 from tqdm import tqdm
 
-# 처리할 파일들이 위치한 디렉토리 경로
-raw_data_dir = r'E:\metnet3\weather_bench\raw_data'
+from Data_downloader_large import data_root, raw_data_dir
 
 # 결과물을 저장할 디렉토리 경로
-sparse_input_dir = r'E:\metnet3\weather_bench\sparse_data_input'
-dense_input_dir = r'E:\metnet3\weather_bench\dense_data_input'
-low_input_dir = r'E:\metnet3\weather_bench\low_data_input'
-high_data_target_dir = r'E:\metnet3\weather_bench\high_data_target'
-sparse_target_dir = r'E:\metnet3\weather_bench\sparse_data_target'
-dense_target_dir = r'E:\metnet3\weather_bench\dense_data_target'
+sparse_input_dir_dense = data_root + 'sparse_data_input/'
+dense_input_dir = data_root + 'dense_data_input/'
+low_input_dir = data_root + 'low_data_input/'
+high_data_target_dir = data_root + 'high_data_target/'
+sparse_target_dir_dense = data_root + 'sparse_data_target/'
+dense_target_dir = data_root + 'dense_data_target/'
 
-# 저장 디렉토리가 없으면 생성
-output_dirs = [
-    sparse_input_dir,
-    dense_input_dir,
-    low_input_dir,
-    high_data_target_dir,
-    sparse_target_dir,
-    dense_target_dir
-]
-for directory in output_dirs:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
-#down sample : chat gpt
+# down sample : chat gpt
 def downsample_spatial(ds, factor=2):
-
     return ds.coarsen(latitude=factor, longitude=factor, boundary='trim').mean()
 
-#target size로 center crop
+
+# target size로 center crop
 def center_crop(ds, target_size, dim1='latitude', dim2='longitude'):
     size1 = ds.dims[dim1]
     size2 = ds.dims[dim2]
@@ -43,9 +29,9 @@ def center_crop(ds, target_size, dim1='latitude', dim2='longitude'):
     return ds.isel(latitude=slice(start1, start1 + target_size),
                    longitude=slice(start2, start2 + target_size))
 
-#Level (고도) 에 따른 변수값 전체 평균
-def average_over_level(ds):
 
+# Level (고도) 에 따른 변수값 전체 평균
+def average_over_level(ds):
     if 'level' in ds.dims:
         return ds.mean(dim='level')
     else:
@@ -107,7 +93,7 @@ def process_files_grouped_by_date(nc_files):
             sparse_data = cropped_156[sparse_vars]
             sparse_data = average_over_level(sparse_data)
             sparse_filename = f"156x156_sparse_0.5_input_{date_str}.nc"
-            sparse_filepath = os.path.join(sparse_input_dir, sparse_filename)
+            sparse_filepath = os.path.join(sparse_input_dir_dense, sparse_filename)
             sparse_data.to_netcdf(sparse_filepath)
 
             # dense_data_input 
@@ -157,7 +143,7 @@ def process_files_grouped_by_date(nc_files):
 
             # 32x32_sparse_target_0.5_날짜.nc
             sparse_target_filename = f"32x32_sparse_target_0.5_{date_str}.nc"
-            sparse_target_filepath = os.path.join(sparse_target_dir, sparse_target_filename)
+            sparse_target_filepath = os.path.join(sparse_target_dir_dense, sparse_target_filename)
             sparse_target.to_netcdf(sparse_target_filepath)
 
             # dense_data_target
@@ -179,16 +165,26 @@ def process_files_grouped_by_date(nc_files):
                 ds.close()
 
 
+if __name__ == '__main__':
+    # 저장 디렉토리가 없으면 생성
+    output_dirs = [
+        sparse_input_dir_dense,
+        dense_input_dir,
+        low_input_dir,
+        high_data_target_dir,
+        sparse_target_dir_dense,
+        dense_target_dir
+    ]
+    for directory in output_dirs:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-# raw_data 디렉토리 내 모든 .nc 파일 목록 가져오기
-nc_files = glob(os.path.join(raw_data_dir, '*.nc'))
+    # raw_data 디렉토리 내 모든 .nc 파일 목록 가져오기
+    nc_files = glob(os.path.join(raw_data_dir, '*.nc'))
 
-print(f"총 {len(nc_files)}개의 파일을 처리합니다.")
+    print(f"총 {len(nc_files)}개의 파일을 처리합니다.")
 
-# 파일을 날짜별로 그룹화하여 처리
-process_files_grouped_by_date(nc_files)
+    # 파일을 날짜별로 그룹화하여 처리
+    process_files_grouped_by_date(nc_files)
 
-print("모든 파일 처리가 완료되었습니다.")
-
-
-
+    print("모든 파일 처리가 완료되었습니다.")
