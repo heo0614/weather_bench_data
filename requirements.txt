@@ -1,0 +1,12 @@
+scipy
+numpy
+tqdm
+zarr
+xarray
+fsspec
+aiohttp
+requests
+pandas
+gcsfs
+netcdf4 # sudo apt install libnetcdf-dev
+importlib-metadata==4.13.0
