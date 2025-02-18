@@ -9,4 +9,5 @@ requests
 pandas
 gcsfs
 netcdf4 # sudo apt install libnetcdf-dev
+dask
 importlib-metadata==4.13.0

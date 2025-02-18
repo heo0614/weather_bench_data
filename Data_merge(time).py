@@ -8,7 +8,7 @@ import xarray as xr
 
 from Data_40_delete import get_sparse_dirs
 from Data_division import dense_input_dir, dense_target_dir, low_input_dir, high_data_target_dir, \
-    sparse_target_dir_dense, data_root
+    sparse_target_dir_dense, data_root, sparse_input_dir_dense
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sparsity', type=int, default=40, help='percentage of data points to remove')
@@ -71,6 +71,7 @@ if __name__ == "__main__":
         exit()
 
     base_dirs = [
+        sparse_input_dir_dense,
         sparse_input_dir,
         sparse_target_dir,
         dense_input_dir,

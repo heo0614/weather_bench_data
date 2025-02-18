@@ -33,8 +33,10 @@ if __name__ == '__main__':
 
     # 1. 마스킹 위치 생성 및 delete_position.csv 저장
 
+    # netcdf 파일들
+    input_files = [f for f in os.listdir(sparse_input_dir_dense) if f.endswith('.nc')]
     # sparse input 하나만 불러오기
-    sample_input_file = os.path.join(sparse_input_dir_dense, '156x156_sparse_0.5_input_2019-06-01.nc')
+    sample_input_file = os.path.join(sparse_input_dir_dense, input_files[0])
     ds_input = xr.open_dataset(sample_input_file)
 
     # 위도와 경도 변수 추출
@@ -54,7 +56,7 @@ if __name__ == '__main__':
 
     # 전체 그리드 포인트 수와 마스킹할 포인트 수 계산
     total_grid = lat_grid.shape[0] * lat_grid.shape[1]
-    num_mask = int(sparsity * total_grid)
+    num_mask = int(sparsity * total_grid / 100)
 
     # 그리드 인덱스를 평탄화하여 랜덤 선택
     flatten_indices = np.arange(total_grid)
@@ -77,9 +79,6 @@ if __name__ == '__main__':
     # True = 마스킹할 위치
     mask = np.zeros(lat_grid.shape, dtype=bool)
     mask[mask_2d_indices] = True
-
-    # netcdf 파일들
-    input_files = [f for f in os.listdir(sparse_input_dir_dense) if f.endswith('.nc')]
 
     for file_name in input_files:
         input_path = os.path.join(sparse_input_dir_dense, file_name)
@@ -108,7 +107,7 @@ if __name__ == '__main__':
 
         # 파일명 _input -> _input(40del))
         if '_input' in file_name:
-            new_file_name = file_name.replace('_input', '_input(40del)')
+            new_file_name = file_name.replace('_input', '_input({}del)'.format(sparsity))
         else:
             new_file_name = file_name
             print(f"{file_name}, _input 포함안됨")
@@ -119,7 +118,8 @@ if __name__ == '__main__':
         print(f"{new_file_name} save")
 
     # 타겟 데이터
-    sample_target_file = os.path.join(sparse_target_dir_dense, '128x128_sparse_target_0.5_2019-06-01.nc')
+    target_files = [f for f in os.listdir(sparse_target_dir_dense) if f.endswith('.nc')]
+    sample_target_file = os.path.join(sparse_target_dir_dense, target_files[0])
     ds_target = xr.open_dataset(sample_target_file)
 
     # 타겟 데이터의 위도와 경도 추출
@@ -153,9 +153,6 @@ if __name__ == '__main__':
     # 재조정된 마스크 배열 생성
     adjusted_mask = np.zeros(lat_grid.shape, dtype=bool)
     adjusted_mask[adjusted_mask_indices] = True
-
-    # target data load
-    target_files = [f for f in os.listdir(sparse_target_dir_dense) if f.endswith('.nc')]
 
     for file_name in target_files:
         target_path = os.path.join(sparse_target_dir_dense, file_name)
@@ -214,7 +211,7 @@ if __name__ == '__main__':
 
         # 파일명 _target -> _target(40del))
         if '_target' in file_name:
-            new_file_name = file_name.replace('_target', '_target(40del)')
+            new_file_name = file_name.replace('_target', '_target({}del)'.format(sparsity))
         else:
             new_file_name = file_name
             print(f"{file_name} _target 포함안됨.")
