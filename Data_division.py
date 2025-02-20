@@ -14,6 +14,9 @@ high_data_target_dir = data_root + 'high_data_target/'
 sparse_target_dir_dense = data_root + 'sparse_data_target/'
 dense_target_dir = data_root + 'dense_data_target/'
 
+high_target_res = 128
+target_res = 32
+
 
 # down sample : chat gpt
 def downsample_spatial(ds, factor=2):
@@ -81,7 +84,7 @@ def process_files_grouped_by_date(nc_files):
             # raw_down을 중심 크롭하여 156x156으로
             cropped_156 = center_crop(raw_down, 156)
 
-            # 3. sparse_data_input 
+            # 3. sparse_data_input
             sparse_vars = [
                 '2m_temperature',
                 'surface_pressure',
@@ -96,7 +99,7 @@ def process_files_grouped_by_date(nc_files):
             sparse_filepath = os.path.join(sparse_input_dir_dense, sparse_filename)
             sparse_data.to_netcdf(sparse_filepath)
 
-            # dense_data_input 
+            # dense_data_input
             dense_vars = [
                 'geopotential',
                 'land_sea_mask',
@@ -124,36 +127,36 @@ def process_files_grouped_by_date(nc_files):
             low_filepath = os.path.join(low_input_dir, low_filename)
             low_data.to_netcdf(low_filepath)
 
-            # raw_data에서 중심 크롭하여 64x64로, high_data_target
-            cropped_64 = center_crop(combined_ds, 64)
-            precip_data = cropped_64[['total_precipitation']]
+            # raw_data에서 중심 크롭하여 high_target_resxhigh_target_res로, high_data_target
+            cropped_ht = center_crop(combined_ds, high_target_res)
+            precip_data = cropped_ht[['total_precipitation']]
             precip_data = average_over_level(precip_data)
 
-            # 64x64_high_target_0.25_날짜.nc
-            precip_filename = f"64x64_high_target_0.25_{date_str}.nc"
+            # 128x128_high_target_0.25_날짜.nc
+            precip_filename = f"{high_target_res}x{high_target_res}_high_target_0.25_{date_str}.nc"
             precip_filepath = os.path.join(high_data_target_dir, precip_filename)
             precip_data.to_netcdf(precip_filepath)
 
-            # sparse_data (156x156)를 다시 중심 크롭하여 32x32로
-            cropped_32_sparse = center_crop(sparse_data, 32)
+            # sparse_data (156x156)를 다시 중심 크롭하여 target_resxtarget_res로
+            cropped_target_sparse = center_crop(sparse_data, target_res)
 
             # sparse_data_target 처리 ('2m_temperature', 'total_precipitation', '2m_dewpoint_temperature')
             sparse_target_vars = ['2m_temperature', 'total_precipitation', '2m_dewpoint_temperature']
-            sparse_target = cropped_32_sparse[sparse_target_vars]
+            sparse_target = cropped_target_sparse[sparse_target_vars]
 
             # 32x32_sparse_target_0.5_날짜.nc
-            sparse_target_filename = f"32x32_sparse_target_0.5_{date_str}.nc"
+            sparse_target_filename = f"{target_res}x{target_res}_sparse_target_0.5_{date_str}.nc"
             sparse_target_filepath = os.path.join(sparse_target_dir_dense, sparse_target_filename)
             sparse_target.to_netcdf(sparse_target_filepath)
 
             # dense_data_target
-            cropped_32_dense = center_crop(dense_data, 32)
+            cropped_target_dense = center_crop(dense_data, target_res)
 
             # 10. dense_data_target 저장
             # 32x32_dense_target_0.5_날짜.nc
-            dense_target_filename = f"32x32_dense_target_0.5_{date_str}.nc"
+            dense_target_filename = f"{target_res}x{target_res}_dense_target_0.5_{date_str}.nc"
             dense_target_filepath = os.path.join(dense_target_dir, dense_target_filename)
-            cropped_32_dense.to_netcdf(dense_target_filepath)
+            cropped_target_dense.to_netcdf(dense_target_filepath)
 
         except Exception as e:
             print(f"날짜 {date_str}의 파일 처리 중 오류 발생: {e}")
