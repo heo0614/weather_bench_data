@@ -69,13 +69,16 @@ def process_files_grouped_by_date(nc_files):
             continue
 
         # 하나의 데이터셋으로 병합
-        try:
-            combined_ds = xr.concat(datasets, dim='time')
-        except Exception as e:
-            print(f"데이터셋을 병합하는 중 오류 발생: {date_str}, 오류: {e}")
-            for ds in datasets:
-                ds.close()
-            continue
+        if len(datasets) == 1:
+            combined_ds = datasets[0]
+        else:
+            try:
+                combined_ds = xr.concat(datasets, dim='time')
+            except Exception as e:
+                print(f"데이터셋을 병합하는 중 오류 발생: {date_str}, 오류: {e}")
+                for ds in datasets:
+                    ds.close()
+                continue
 
         try:
             # 624x624 데이터를 312x312로 다운샘플링 (raw_down)
