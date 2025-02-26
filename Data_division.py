@@ -1,10 +1,31 @@
 import os
 from glob import glob
-
 import xarray as xr
 from tqdm import tqdm
-
 from Data_downloader_large import data_root, raw_data_dir
+
+# -------------------------------------------------
+# Define Sparse, Dense, Low variables
+# -------------------------------------------------
+
+dense_vars = [
+    'geopotential',
+    'land_sea_mask',
+    'temperature',
+    '10m_u_component_of_wind',
+    '10m_v_component_of_wind',
+    'specific_humidity'
+]
+sparse_vars = [
+    '2m_temperature',
+    'surface_pressure',
+    'total_precipitation',
+    'u_component_of_wind',
+    'v_component_of_wind',
+    '2m_dewpoint_temperature'
+]
+low_vars = ['total_cloud_cover', 'total_precipitation']
+
 
 # 결과물을 저장할 디렉토리 경로
 sparse_input_dir_dense = data_root + 'sparse_data_input/'
@@ -14,9 +35,10 @@ high_data_target_dir = data_root + 'high_data_target/'
 sparse_target_dir_dense = data_root + 'sparse_data_target/'
 dense_target_dir = data_root + 'dense_data_target/'
 
+# Define size of data
+input_res = 156
 high_target_res = 128
 target_res = 32
-
 
 # down sample : chat gpt
 def downsample_spatial(ds, factor=2):
@@ -85,48 +107,36 @@ def process_files_grouped_by_date(nc_files):
             raw_down = downsample_spatial(combined_ds, factor=2)
 
             # raw_down을 중심 크롭하여 156x156으로
-            cropped_156 = center_crop(raw_down, 156)
+            cropped_156 = center_crop(raw_down, input_res)
 
             # 3. sparse_data_input
-            sparse_vars = [
-                '2m_temperature',
-                'surface_pressure',
-                'total_precipitation',
-                'u_component_of_wind',
-                'v_component_of_wind',
-                '2m_dewpoint_temperature'
-            ]
+
             sparse_data = cropped_156[sparse_vars]
             sparse_data = average_over_level(sparse_data)
-            sparse_filename = f"156x156_sparse_0.5_input_{date_str}.nc"
+            sparse_filename = f"{input_res}x{input_res}_sparse_0.5_input_{date_str}.nc"
             sparse_filepath = os.path.join(sparse_input_dir_dense, sparse_filename)
             sparse_data.to_netcdf(sparse_filepath)
 
             # dense_data_input
-            dense_vars = [
-                'geopotential',
-                'land_sea_mask',
-                'temperature',
-                '10m_u_component_of_wind',
-                '10m_v_component_of_wind',
-                'specific_humidity'
-            ]
+            # The `dense_vars` list is used to specify the variables that will be extracted from the dataset for
+            # creating the `dense_data` input. These variables are essential meteorological parameters that are
+            # considered dense or high-resolution data. Here is a brief explanation of each variable:
+
             dense_data = cropped_156[dense_vars]
             dense_data = average_over_level(dense_data)
 
             # 156x156_dense_0.5_input_날짜.nc
-            dense_filename = f"156x156_dense_0.5_input_{date_str}.nc"
+            dense_filename = f"{input_res}x{input_res}_dense_0.5_input_{date_str}.nc"
             dense_filepath = os.path.join(dense_input_dir, dense_filename)
             dense_data.to_netcdf(dense_filepath)
 
             # raw_down을 다시 다운샘플링하여 156x156으로 (low_data_input)
             low_down = downsample_spatial(raw_down, factor=2)
-            low_vars = ['total_cloud_cover', 'total_precipitation']
             low_data = low_down[low_vars]
             low_data = average_over_level(low_data)
 
             # 156x156_low_1.0_input_날짜.nc
-            low_filename = f"156x156_low_1.0_input_{date_str}.nc"
+            low_filename = f"{input_res}x{input_res}_low_1.0_input_{date_str}.nc"
             low_filepath = os.path.join(low_input_dir, low_filename)
             low_data.to_netcdf(low_filepath)
 
