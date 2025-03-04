@@ -1,6 +1,7 @@
 import os
 from glob import glob
 import xarray as xr
+import numpy as np
 from tqdm import tqdm
 from Data_downloader_large import data_root, raw_data_dir
 
@@ -8,14 +9,6 @@ from Data_downloader_large import data_root, raw_data_dir
 # Define Sparse, Dense, Low variables
 # -------------------------------------------------
 
-dense_vars = [
-    'geopotential',
-    'land_sea_mask',
-    'temperature',
-    '10m_u_component_of_wind',
-    '10m_v_component_of_wind',
-    'specific_humidity'
-]
 sparse_vars = [
     '2m_temperature',
     'surface_pressure',
@@ -24,8 +17,25 @@ sparse_vars = [
     'v_component_of_wind',
     '2m_dewpoint_temperature'
 ]
-low_vars = ['total_cloud_cover', 'total_precipitation']
-
+dense_vars = [
+    'geopotential',
+    'land_sea_mask',
+    'temperature',
+    '10m_u_component_of_wind',
+    '10m_v_component_of_wind',
+    'specific_humidity'
+]
+low_vars = [
+    'total_cloud_cover',
+    'total_precipitation'
+]
+sparse_target_vars = [
+    '2m_temperature',
+    'total_precipitation',
+    '2m_dewpoint_temperature'
+]
+dense_target_vars = dense_vars
+high_target_vars = ['total_precipitation']
 
 # 결과물을 저장할 디렉토리 경로
 sparse_input_dir_dense = data_root + 'sparse_data_input/'
@@ -44,24 +54,22 @@ target_res = 32
 def downsample_spatial(ds, factor=2):
     return ds.coarsen(latitude=factor, longitude=factor, boundary='trim').mean()
 
+def upsample_spatial(ds, factor=2):
+    return ds.interp(
+        latitude=np.linspace(ds.latitude.min(), ds.latitude.max(), ds.latitude.size * factor),
+        longitude=np.linspace(ds.longitude.min(), ds.longitude.max(), ds.longitude.size * factor)
+    )
+
 
 # target size로 center crop
 def center_crop(ds, target_size, dim1='latitude', dim2='longitude'):
+    # target_size로 중심부분 잘라내기
     size1 = ds.dims[dim1]
     size2 = ds.dims[dim2]
     start1 = (size1 - target_size) // 2
     start2 = (size2 - target_size) // 2
-    return ds.isel(latitude=slice(start1, start1 + target_size),
-                   longitude=slice(start2, start2 + target_size))
-
-
-# Level (고도) 에 따른 변수값 전체 평균
-def average_over_level(ds):
-    if 'level' in ds.dims:
-        return ds.mean(dim='level')
-    else:
-        return ds
-
+    return ds.isel(**{dim1: slice(start1, start1 + target_size),
+                      dim2: slice(start2, start2 + target_size)})
 
 def process_files_grouped_by_date(nc_files):
     """
@@ -103,73 +111,63 @@ def process_files_grouped_by_date(nc_files):
                 continue
 
         try:
+            
             # 624x624 데이터를 312x312로 다운샘플링 (raw_down)
             raw_down = downsample_spatial(combined_ds, factor=2)
-
+            # 312x312로 다운샘플링 data를 다시 다운샘플링하여 156x156으로 (low_down)
+            low_down = downsample_spatial(raw_down, factor=2)
             # raw_down을 중심 크롭하여 156x156으로
             cropped_156 = center_crop(raw_down, input_res)
-
-            # 3. sparse_data_input
-
+            
+            #1. Input Process
+            
+            # sparse_data_input
             sparse_data = cropped_156[sparse_vars]
-            sparse_data = average_over_level(sparse_data)
             sparse_filename = f"{input_res}x{input_res}_sparse_0.5_input_{date_str}.nc"
             sparse_filepath = os.path.join(sparse_input_dir_dense, sparse_filename)
             sparse_data.to_netcdf(sparse_filepath)
 
             # dense_data_input
-            # The `dense_vars` list is used to specify the variables that will be extracted from the dataset for
-            # creating the `dense_data` input. These variables are essential meteorological parameters that are
-            # considered dense or high-resolution data. Here is a brief explanation of each variable:
-
             dense_data = cropped_156[dense_vars]
-            dense_data = average_over_level(dense_data)
-
-            # 156x156_dense_0.5_input_날짜.nc
             dense_filename = f"{input_res}x{input_res}_dense_0.5_input_{date_str}.nc"
             dense_filepath = os.path.join(dense_input_dir, dense_filename)
             dense_data.to_netcdf(dense_filepath)
 
-            # raw_down을 다시 다운샘플링하여 156x156으로 (low_data_input)
-            low_down = downsample_spatial(raw_down, factor=2)
+            # low_data_input
             low_data = low_down[low_vars]
-            low_data = average_over_level(low_data)
-
-            # 156x156_low_1.0_input_날짜.nc
             low_filename = f"{input_res}x{input_res}_low_1.0_input_{date_str}.nc"
             low_filepath = os.path.join(low_input_dir, low_filename)
             low_data.to_netcdf(low_filepath)
 
-            # raw_data에서 중심 크롭하여 high_target_resxhigh_target_res로, high_data_target
-            cropped_ht = center_crop(combined_ds, high_target_res)
-            precip_data = cropped_ht[['total_precipitation']]
-            precip_data = average_over_level(precip_data)
-
-            # 128x128_high_target_0.25_날짜.nc
-            precip_filename = f"{high_target_res}x{high_target_res}_high_target_0.25_{date_str}.nc"
-            precip_filepath = os.path.join(high_data_target_dir, precip_filename)
-            precip_data.to_netcdf(precip_filepath)
-
-            # sparse_data (156x156)를 다시 중심 크롭하여 target_resxtarget_res로
+            #2. Target Process
+            
+            # sparse_data (156x156)를 다시 중심 크롭하여 target_res로
             cropped_target_sparse = center_crop(sparse_data, target_res)
-
-            # sparse_data_target 처리 ('2m_temperature', 'total_precipitation', '2m_dewpoint_temperature')
-            sparse_target_vars = ['2m_temperature', 'total_precipitation', '2m_dewpoint_temperature']
+            # dense_data (156x156)를 다시 중심 크롭하여 target_res로
+            cropped_target_dense = center_crop(dense_data, target_res)
+            # high_target (128x128) 생성
+            cropped_high_target = center_crop(combined_ds, high_target_res/2) # => 64crop
+            upsampled_high_target = upsample_spatial(cropped_high_target, factor = 2) #=> 128x128 resolution
+            
+            # sparse_data_target
             sparse_target = cropped_target_sparse[sparse_target_vars]
-
-            # 32x32_sparse_target_0.5_날짜.nc
             sparse_target_filename = f"{target_res}x{target_res}_sparse_target_0.5_{date_str}.nc"
             sparse_target_filepath = os.path.join(sparse_target_dir_dense, sparse_target_filename)
             sparse_target.to_netcdf(sparse_target_filepath)
 
             # dense_data_target
-            cropped_target_dense = center_crop(dense_data, target_res)
-
-            # 10. dense_data_target 저장
-            # 32x32_dense_target_0.5_날짜.nc
+            dense_target = cropped_target_dense[dense_target_vars]
             dense_target_filename = f"{target_res}x{target_res}_dense_target_0.5_{date_str}.nc"
             dense_target_filepath = os.path.join(dense_target_dir, dense_target_filename)
-            cropped_target_dense.to_netcdf(dense_target_filepath)
+            dense_target.to_netcdf(dense_target_filepath)
+            
+            # high_data_target
+            high_target = upsampled_high_target[high_target_vars]
+            high_target_filename = f"{high_target_res}x{high_target_res}_high_target_0.25_{date_str}.nc"
+            high_target_filepath = os.path.join(high_data_target_dir, high_target_filename)
+            high_target.to_netcdf(high_target_filepath)
+
+
 
         except Exception as e:
             print(f"날짜 {date_str}의 파일 처리 중 오류 발생: {e}")
