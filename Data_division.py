@@ -56,8 +56,8 @@ def downsample_spatial(ds, factor=2):
 
 def upsample_spatial(ds, factor=2):
     return ds.interp(
-        latitude=np.linspace(ds.latitude.min(), ds.latitude.max(), ds.latitude.size * factor),
-        longitude=np.linspace(ds.longitude.min(), ds.longitude.max(), ds.longitude.size * factor)
+        latitude=np.linspace(ds.latitude.min().values, ds.latitude.max().values, ds.latitude.size * factor),
+        longitude=np.linspace(ds.longitude.min().values, ds.longitude.max().values, ds.longitude.size * factor)
     )
 
 
@@ -146,7 +146,7 @@ def process_files_grouped_by_date(nc_files):
             # dense_data (156x156)를 다시 중심 크롭하여 target_res로
             cropped_target_dense = center_crop(dense_data, target_res)
             # high_target (128x128) 생성
-            cropped_high_target = center_crop(combined_ds, high_target_res/2) # => 64crop
+            cropped_high_target = center_crop(combined_ds, int(high_target_res/2)) # => 64crop
             upsampled_high_target = upsample_spatial(cropped_high_target, factor = 2) #=> 128x128 resolution
             
             # sparse_data_target
