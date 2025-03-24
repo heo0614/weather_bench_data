@@ -8,7 +8,7 @@ import xarray as xr
 from tqdm import tqdm
 
 # 데이터 저장 경로 설정
-data_root = '../datasets/weather_bench/'
+data_root = 'datasets/weather_bench/'
 raw_data_dir = data_root + 'raw_data/'
 
 parser = argparse.ArgumentParser()

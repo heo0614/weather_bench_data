@@ -79,15 +79,15 @@ if __name__ == '__main__':
     # True = 마스킹할 위치
     mask = np.zeros(lat_grid.shape, dtype=bool)
     mask[mask_2d_indices] = True
-
+    
     for file_name in input_files:
         input_path = os.path.join(sparse_input_dir_dense, file_name)
         ds = xr.open_dataset(input_path)
 
         # nan - var
-        variables_to_mask = ['2m_temperature', 'surface_pressure', 'total_precipitation',
-                             'u_component_of_wind', 'v_component_of_wind',
-                             '2m_dewpoint_temperature']
+        variables_to_mask = ['2m_temperature', 'surface_pressure', 'temperature',
+                            '10m_u_component_of_wind', '10m_v_component_of_wind',
+                            '2m_dewpoint_temperature']
 
         for var in variables_to_mask:
             if var in ds.data_vars:
@@ -97,7 +97,7 @@ if __name__ == '__main__':
                 if ('latitude' in var_dims) and ('longitude' in var_dims):
                     # mask -> dataArray
                     mask_da = xr.DataArray(mask, coords={'latitude': ds['latitude'], 'longitude': ds['longitude']},
-                                           dims=('latitude', 'longitude'))
+                                        dims=('latitude', 'longitude'))
                     # 마스크
                     ds[var] = ds[var].where(~mask_da)
                 else:
@@ -159,8 +159,7 @@ if __name__ == '__main__':
         ds = xr.open_dataset(target_path)
 
         # 마스킹 변수
-        variables_to_mask_target = ['2m_temperature', 'total_precipitation',
-                                    '2m_dewpoint_temperature']
+        variables_to_mask_target = ['2m_temperature','2m_dewpoint_temperature']
 
         for var in variables_to_mask_target:
             if var in ds.data_vars:
@@ -203,8 +202,8 @@ if __name__ == '__main__':
 
                 # 타겟 그리드에 맞게 마스크 적용
                 mask_da_target = xr.DataArray(adjusted_mask_crop,
-                                              coords={'latitude': ds['latitude'], 'longitude': ds['longitude']},
-                                              dims=('latitude', 'longitude'))
+                                            coords={'latitude': ds['latitude'], 'longitude': ds['longitude']},
+                                            dims=('latitude', 'longitude'))
                 ds[var] = ds[var].where(~mask_da_target)
             else:
                 print(f"{file_name}, {var}")

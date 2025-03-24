@@ -52,7 +52,7 @@ def merge_nc_files(directory):
     # xarray의 open_mfdataset을 사용하여 여러 파일을 하나의 데이터셋으로 병합
     # combine='by_coords'는 좌표를 기준으로 병합
     try:
-        ds = xr.open_mfdataset(nc_files, combine='by_coords')
+        ds = xr.open_mfdataset(nc_files, combine='nested', concat_dim='time',decode_times=False)
         # 병합된 데이터셋을 'all.nc' 파일로 저장
         ds.to_netcdf(output_path)
         print(f"끝 {output_path}\n")
